@@ -10,7 +10,7 @@ pub use error::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("4tATuX7cQcBe6DJ31EMbq5dVGZhjDuEXqP2hBGfBWyr6");
+declare_id!("BKDyQffK2XZom8Fg7VgLSekNPrpCiA4TP7Yeqq1gTBty");
 
 #[program]
 pub mod prediction_market {

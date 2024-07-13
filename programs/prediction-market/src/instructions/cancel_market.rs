@@ -89,9 +89,7 @@ pub struct CancelMarket<'info> {
     )]
     pub lower_pool: Account<'info, TokenAccount>,
 
-    #[account(
-        mut,
-    )]
+    #[account(mut)]
     pub market_creator: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,

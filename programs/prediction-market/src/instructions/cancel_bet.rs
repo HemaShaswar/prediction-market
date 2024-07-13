@@ -7,7 +7,7 @@ use crate::{error::MarketError, Bet, Direction, Market, BET_SEED, HIGHER_POOL_SE
 pub fn _cancel_bet(
     ctx: Context<CancelBet>,
 ) -> Result<()> {
-    let bet = &mut ctx.accounts.bet;
+    let bet = &ctx.accounts.bet;
     let market = &ctx.accounts.market;
     let clock = Clock::get()?;
 
@@ -31,11 +31,6 @@ pub fn _cancel_bet(
         ),
         bet.amount,
     )?;
-
-    //just for increased redundancy because the bet account should be closed after
-    bet.amount = 0;
-    bet.claimed = true;
-    bet.initialized = false;
 
     Ok(())
 }
@@ -82,9 +77,7 @@ pub struct CancelBet<'info> {
     )]
     pub user_ata: Account<'info, TokenAccount>,
 
-    #[account(
-        mut,
-    )]
+    #[account(mut)]
     pub user: Signer<'info>,
     
     #[account(
