@@ -89,7 +89,6 @@ pub struct FinalizeMarket<'info> {
 
     #[account(
         mut,
-        address = market.creator,
     )]
     pub market_creator: Signer<'info>,
     pub system_program: Program<'info, System>,

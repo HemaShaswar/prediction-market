@@ -50,7 +50,6 @@ pub struct CancelBet<'info> {
             &market.market_duration.to_le_bytes(),
         ],
         bump = market.bump,
-        address = bet.market, //check that this is the same market the bet was initialized with
     )]
     pub market: Account<'info, Market>,
 
@@ -85,7 +84,6 @@ pub struct CancelBet<'info> {
 
     #[account(
         mut,
-        address = bet.user,
     )]
     pub user: Signer<'info>,
     

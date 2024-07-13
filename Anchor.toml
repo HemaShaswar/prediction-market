@@ -1,18 +1,18 @@
 [toolchain]
 
 [features]
-resolution = true
+seeds = false
 skip-lint = false
 
 [programs.localnet]
-prediction_market = "7EvL7CSmeR7bSi3FoqTmFHP8mTvk8PyLLGq7TkWm3KTT"
+prediction_market = "4tATuX7cQcBe6DJ31EMbq5dVGZhjDuEXqP2hBGfBWyr6"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "/home/hema/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

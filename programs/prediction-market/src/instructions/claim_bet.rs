@@ -11,6 +11,7 @@ pub fn _claim_bet(
     let market = &ctx.accounts.market;
     let clock = Clock::get()?;
 
+    require_keys_eq!(market.key(),bet.market,MarketError::BetMarketMismatch);
     require_keys_eq!(ctx.accounts.user.key(),bet.user,MarketError::UnauthorizedUser);
     require_gt!(clock.slot,market.start_time + market.market_duration,MarketError::MarketDurationNotOver);
     require_eq!(bet.claimed,false,MarketError::BetIsClaimed);
@@ -50,7 +51,6 @@ pub struct ClaimBet<'info> {
             &market.market_duration.to_le_bytes(),
         ],
         bump = market.bump,
-        address = bet.market, //check that this is the same market the bet was initialized with
     )]
     pub market: Account<'info, Market>,
 
@@ -85,7 +85,6 @@ pub struct ClaimBet<'info> {
 
     #[account(
         mut,
-        address = bet.user,
     )]
     pub user: Signer<'info>,
     

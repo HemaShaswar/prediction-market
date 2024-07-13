@@ -16,4 +16,8 @@ pub enum MarketError {
     MarketDurationNotOver,
     #[msg("You can Finalize market after the MARKET_LOCK_PERIOD is over")]
     MarketLockPeriodNotOver,
+    #[msg("Market key must match bet market key")]
+    BetMarketMismatch,
+    #[msg("Market must be Initialized first")]
+    MarketNotInitialized,
 }
