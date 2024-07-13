@@ -1,9 +1,11 @@
-use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED, MARKET_LOCK_PERIOD,Market};
+use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED, MARKET_LOCK_PERIOD};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{close_account, CloseAccount, Token, TokenAccount};
 
-pub fn _finalize_market(
-    ctx: Context<FinalizeMarket>,
+use crate::Market;
+
+pub fn _cancel_market(
+    ctx: Context<CancelMarket>,
 ) -> Result<()> {
     let market = &ctx.accounts.market;
     let clock = Clock::get()?;
@@ -47,7 +49,7 @@ pub fn _finalize_market(
 }
 
 #[derive(Accounts)]
-pub struct FinalizeMarket<'info> {
+pub struct CancelMarket<'info> {
     #[account(
         mut,
         close = market_creator,

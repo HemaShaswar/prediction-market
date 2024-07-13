@@ -1,8 +1,6 @@
-use crate::{error::MarketError, MarketState, HIGHER_POOL_SEED, LOWER_POOL_SEED};
+use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED,Market};
 use anchor_lang::prelude::*;
-use anchor_spl::token::*;
-
-use crate::Market;
+use anchor_spl::token::{Token,TokenAccount,Mint};
 
 pub fn _initialize_market(
     ctx: Context<InitializeMarket>,
@@ -33,7 +31,7 @@ pub fn _initialize_market(
     market.lower_pool_bump = ctx.bumps.lower_pool;
     market.higher_pool_bump = ctx.bumps.higher_pool;
 
-    market.state = MarketState::Initialized;
+    market.initialized = true;
 
     Ok(())
 }
@@ -53,7 +51,7 @@ pub struct InitializeMarket<'info> {
         ],
         bump
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
 
     #[account(
         init,
@@ -66,7 +64,7 @@ pub struct InitializeMarket<'info> {
         ],
         bump
     )]
-    pub higher_pool: Account<'info, TokenAccount>,
+    pub higher_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -79,10 +77,10 @@ pub struct InitializeMarket<'info> {
         ],
         bump
     )]
-    pub lower_pool: Account<'info, TokenAccount>,
+    pub lower_pool: Box<Account<'info, TokenAccount>>,
 
     //token mint account that bets are gonna be made with e.g JUP
-    pub market_mint_account: Account<'info,Mint>,
+    pub market_mint_account: Box<Account<'info,Mint>>,
 
     #[account(mut)]
     pub market_creator: Signer<'info>,
