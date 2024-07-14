@@ -24,11 +24,9 @@ pub fn _claim_bet(
 
     let price = price_update.get_price_no_older_than(&clock, 10_u64,&get_feed_id_from_hex(feed_id_str)? )?;
 
-    if
-
     let bet_pool: AccountInfo = match bet.direction {
         Direction::Higher => ctx.accounts.higher_pool.to_account_info(),
-        Direction::Lower => ctx.accounts.lower_pool.to_account_info()
+        Direction::Lower => ctx.accounts.lower_pool.to_account_info(),
     };
 
     transfer(

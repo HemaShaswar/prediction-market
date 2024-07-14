@@ -17,7 +17,7 @@ pub struct Market {
 }
 
 #[derive(
-    AnchorSerialize, AnchorDeserialize, Clone, InitSpace, ToPrimitive, FromPrimitive, PartialEq, Eq,
+    AnchorSerialize, AnchorDeserialize, Clone, InitSpace, ToPrimitive, FromPrimitive, PartialEq,
 )]
 pub enum Direction {
     Higher,
