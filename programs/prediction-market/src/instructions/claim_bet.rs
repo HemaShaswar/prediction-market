@@ -29,7 +29,6 @@ pub fn _claim_bet(
         let feed_id = get_feed_id_from_hex(feed_id_str)
             .map_err(|_| MarketError::InvalidFeedId)?;
 
-
         let price =price_update.get_price_no_older_than(
             &clock,
             30_u64,

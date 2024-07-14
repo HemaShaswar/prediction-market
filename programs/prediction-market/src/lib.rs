@@ -10,7 +10,7 @@ pub use error::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("8Lfcynj6TPfhLi6nPwQC7iCPbgmuGNk2a86G9sbQw6Bg");
+declare_id!("FhcPY3mVhztRu32BKnkqNTx4gAyeNK6Yy5Tixcrgz6Lm");
 
 #[program]
 pub mod prediction_market {
@@ -19,7 +19,7 @@ pub mod prediction_market {
     pub fn initialize_market(
         ctx: Context<InitializeMarket>,
         taget_price: u64,
-        feed_id: String, // from https://pyth.network/developers/price-feed-ids#solana-stables
+        feed_id: [u8; 66], // from https://pyth.network/developers/price-feed-ids#solana-stables
         market_duration: u64,
     ) -> Result<()> {
         _initialize_market(ctx, taget_price, feed_id, market_duration)
