@@ -8,16 +8,20 @@ pub enum MarketError {
     ShortMarketDuration,
     #[msg("Only the account creator can change account state")]
     UnauthorizedUser,
-    #[msg("Market Duration is Over. Market is Locked")]
-    MarketDurationOver,
     #[msg("Bet is already claimed before")]
     BetIsClaimed,
-    #[msg("Market duration is ot over yet")]
-    MarketDurationNotOver,
-    #[msg("You can Finalize market after the MARKET_LOCK_PERIOD is over")]
-    MarketLockPeriodNotOver,
     #[msg("Market key must match bet market key")]
     BetMarketMismatch,
-    #[msg("Market must be Initialized first")]
-    MarketNotInitialized,
+    #[msg("Invalid market stage. Must perform instruction at correct time period")]
+    InvalidMarketInitialization,
+    #[msg("Market betting Duration is not over yet")]
+    MarketDurationNotOver,
+    #[msg("576000 slots must pass after Market betting period before closing market")]
+    MarketLockPeriodNotOver,
+    #[msg("Bet Can only be placed during the market duration")]
+    MarketDurationOver,
+    #[msg("Bet pools are non zero. Market can not cancel")]
+    NonZeroPools,
+    #[msg("Error during UTF8 conversion")]
+    InvalidUtf8,
 }

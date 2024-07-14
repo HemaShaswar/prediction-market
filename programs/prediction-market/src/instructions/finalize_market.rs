@@ -1,4 +1,4 @@
-use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED, MARKET_LOCK_PERIOD,Market};
+use crate::{error::MarketError, Market, MarketInitialization, HIGHER_POOL_SEED, LOWER_POOL_SEED, MARKET_LOCK_PERIOD};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{close_account, CloseAccount, Token, TokenAccount};
 
@@ -8,8 +8,9 @@ pub fn _finalize_market(
     let market = &ctx.accounts.market;
     let clock = Clock::get()?;
 
+    require!(market.initialization == MarketInitialization::InitializedPools,MarketError::InvalidMarketInitialization);
     require_keys_eq!(ctx.accounts.market_creator.key(),market.creator,MarketError::UnauthorizedUser);
-    require_gt!(clock.slot,market.start_time + market.market_duration + MARKET_LOCK_PERIOD,MarketError::MarketLockPeriodNotOver);
+    require_gt!(clock.slot,market.start_time + market.market_duration + MARKET_LOCK_PERIOD,MarketError::InvalidMarketInitialization);
 
     close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(), 
@@ -59,7 +60,7 @@ pub struct FinalizeMarket<'info> {
         ],
         bump = market.bump,
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
 
     #[account(
         mut,
@@ -72,7 +73,7 @@ pub struct FinalizeMarket<'info> {
         ],
         bump = market.higher_pool_bump,
     )]
-    pub higher_pool: Account<'info, TokenAccount>,
+    pub higher_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -85,10 +86,11 @@ pub struct FinalizeMarket<'info> {
         ],
         bump = market.lower_pool_bump,
     )]
-    pub lower_pool: Account<'info, TokenAccount>,
+    pub lower_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
+        address = market.creator,
     )]
     pub market_creator: Signer<'info>,
     pub system_program: Program<'info, System>,

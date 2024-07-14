@@ -1,4 +1,4 @@
-use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED, MARKET_LOCK_PERIOD};
+use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{close_account, CloseAccount, Token, TokenAccount};
 
@@ -8,10 +8,9 @@ pub fn _cancel_market(
     ctx: Context<CancelMarket>,
 ) -> Result<()> {
     let market = &ctx.accounts.market;
-    let clock = Clock::get()?;
 
+    require_eq!(ctx.accounts.higher_pool.amount + ctx.accounts.lower_pool.amount,0,MarketError::NonZeroPools);
     require_keys_eq!(ctx.accounts.market_creator.key(),market.creator,MarketError::UnauthorizedUser);
-    require_gt!(clock.slot,market.start_time + market.market_duration + MARKET_LOCK_PERIOD,MarketError::MarketLockPeriodNotOver);
 
     close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(), 
@@ -89,7 +88,10 @@ pub struct CancelMarket<'info> {
     )]
     pub lower_pool: Account<'info, TokenAccount>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        address = market.creator,
+    )]
     pub market_creator: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,

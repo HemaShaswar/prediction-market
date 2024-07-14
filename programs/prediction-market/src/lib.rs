@@ -25,6 +25,10 @@ pub mod prediction_market {
         _initialize_market(ctx, taget_price, feed_id, market_duration)
     }
 
+    pub fn initialize_pools(ctx: Context<InitializePools>) -> Result<()> {
+        _initialize_pools(ctx)
+    }
+
     pub fn cancel_market(ctx: Context<CancelMarket>) -> Result<()> {
         _cancel_market(ctx)
     }

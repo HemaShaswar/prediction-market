@@ -1,20 +1,30 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::*;
 use num_traits::*;
+use pyth_solana_receiver_sdk::price_update::{get_feed_id_from_hex,PriceUpdateV2};
 
-use crate::{error::MarketError, Bet, Direction, Market, BET_SEED, HIGHER_POOL_SEED, LOWER_POOL_SEED};
+use crate::{error::MarketError, Bet, Direction, Market, MarketInitialization, BET_SEED, HIGHER_POOL_SEED, LOWER_POOL_SEED};
 
 pub fn _claim_bet(
     ctx: Context<ClaimBet>,
 ) -> Result<()> {
     let bet = &mut ctx.accounts.bet;
     let market = &ctx.accounts.market;
+    let price_update = &mut ctx.accounts.price_update;
     let clock = Clock::get()?;
 
+    require!(market.initialization == MarketInitialization::InitializedPools,MarketError::InvalidMarketInitialization);
     require_keys_eq!(market.key(),bet.market,MarketError::BetMarketMismatch);
     require_keys_eq!(ctx.accounts.user.key(),bet.user,MarketError::UnauthorizedUser);
     require_gt!(clock.slot,market.start_time + market.market_duration,MarketError::MarketDurationNotOver);
     require_eq!(bet.claimed,false,MarketError::BetIsClaimed);
+
+    let feed_id_str = std::str::from_utf8(&market.feed_id)
+    .map_err(|_| MarketError::InvalidUtf8)?;
+
+    let price = price_update.get_price_no_older_than(&clock, 10_u64,&get_feed_id_from_hex(feed_id_str)? )?;
+
+    if
 
     let bet_pool: AccountInfo = match bet.direction {
         Direction::Higher => ctx.accounts.higher_pool.to_account_info(),
@@ -51,6 +61,7 @@ pub struct ClaimBet<'info> {
             &market.market_duration.to_le_bytes(),
         ],
         bump = market.bump,
+        address = bet.market, 
     )]
     pub market: Account<'info, Market>,
 
@@ -101,6 +112,8 @@ pub struct ClaimBet<'info> {
         bump = bet.bump,
     )]
     pub bet: Account<'info,Bet>,
+
+    pub price_update: Account<'info, PriceUpdateV2>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,

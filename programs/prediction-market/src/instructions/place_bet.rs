@@ -49,7 +49,8 @@ pub struct PlaceBet<'info> {
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
         ],
-        bump = market.bump
+        bump = market.bump,
+        address = bet.market,
     )]
     pub market: Account<'info, Market>,
 

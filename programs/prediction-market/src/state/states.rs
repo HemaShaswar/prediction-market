@@ -13,7 +13,7 @@ pub struct Market {
     pub higher_pool_bump: u8,
     pub lower_pool_bump: u8,
     pub feed_id: [u8; 66], // from https://pyth.network/developers/price-feed-ids#solana-stables
-    pub initialized: bool,
+    pub initialization: MarketInitialization,
 }
 
 #[derive(
@@ -22,6 +22,14 @@ pub struct Market {
 pub enum Direction {
     Higher,
     Lower,
+}
+
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Clone, InitSpace, ToPrimitive, FromPrimitive, PartialEq, Eq,
+)]
+pub enum MarketInitialization {
+    InitializedMarket,
+    InitializedPools,
 }
 #[account]
 #[derive(InitSpace)]
