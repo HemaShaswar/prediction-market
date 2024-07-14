@@ -24,4 +24,12 @@ pub enum MarketError {
     NonZeroPools,
     #[msg("Error during UTF8 conversion")]
     InvalidUtf8,
+    #[msg("The provided mint account is not allowed")]
+    InvalidPoolMint,
+    #[msg("Market Final price is empty. Error during getting price")]
+    NoneFinalPrice,
+    #[msg("Error converting feedID to hex")]
+    InvalidFeedId,
+    #[msg("Overflow occured when adjusting the oracle price data")]
+    PriceAdjustmentOverflow,
 }

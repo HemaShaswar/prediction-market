@@ -10,7 +10,7 @@ pub use error::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("BKDyQffK2XZom8Fg7VgLSekNPrpCiA4TP7Yeqq1gTBty");
+declare_id!("8Lfcynj6TPfhLi6nPwQC7iCPbgmuGNk2a86G9sbQw6Bg");
 
 #[program]
 pub mod prediction_market {
@@ -43,10 +43,6 @@ pub mod prediction_market {
         bet_direction: Direction,
     ) -> Result<()> {
         _place_bet(ctx, bet_amount, bet_direction)
-    }
-
-    pub fn cancel_bet(ctx: Context<CancelBet>) -> Result<()> {
-        _cancel_bet(ctx)
     }
 
     pub fn claim_bet(ctx: Context<ClaimBet>) -> Result<()> {

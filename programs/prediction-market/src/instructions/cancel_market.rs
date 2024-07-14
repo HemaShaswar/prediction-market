@@ -1,8 +1,9 @@
-use crate::{error::MarketError, HIGHER_POOL_SEED, LOWER_POOL_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{close_account, CloseAccount, Token, TokenAccount};
 
-use crate::Market;
+use crate::constants::*;
+use crate::states::*;
+use crate::MarketError;
 
 pub fn _cancel_market(
     ctx: Context<CancelMarket>,
@@ -60,7 +61,7 @@ pub struct CancelMarket<'info> {
         ],
         bump = market.bump,
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
 
     #[account(
         mut,
@@ -73,7 +74,7 @@ pub struct CancelMarket<'info> {
         ],
         bump = market.higher_pool_bump,
     )]
-    pub higher_pool: Account<'info, TokenAccount>,
+    pub higher_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -86,13 +87,14 @@ pub struct CancelMarket<'info> {
         ],
         bump = market.lower_pool_bump,
     )]
-    pub lower_pool: Account<'info, TokenAccount>,
+    pub lower_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         address = market.creator,
     )]
     pub market_creator: Signer<'info>,
+
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
 

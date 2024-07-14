@@ -3,14 +3,16 @@ use anchor_spl::token::*;
 use num_traits::*;
 use pyth_solana_receiver_sdk::price_update::{get_feed_id_from_hex,PriceUpdateV2};
 
-use crate::{error::MarketError, Bet, Direction, Market, MarketInitialization, BET_SEED, HIGHER_POOL_SEED, LOWER_POOL_SEED};
+use crate::constants::*;
+use crate::states::*;
+use crate::MarketError;
 
 pub fn _claim_bet(
     ctx: Context<ClaimBet>,
 ) -> Result<()> {
     let bet = &mut ctx.accounts.bet;
-    let market = &ctx.accounts.market;
-    let price_update = &mut ctx.accounts.price_update;
+    let market = &mut ctx.accounts.market;
+    let price_update = &ctx.accounts.price_update;
     let clock = Clock::get()?;
 
     require!(market.initialization == MarketInitialization::InitializedPools,MarketError::InvalidMarketInitialization);
@@ -19,27 +21,64 @@ pub fn _claim_bet(
     require_gt!(clock.slot,market.start_time + market.market_duration,MarketError::MarketDurationNotOver);
     require_eq!(bet.claimed,false,MarketError::BetIsClaimed);
 
-    let feed_id_str = std::str::from_utf8(&market.feed_id)
-    .map_err(|_| MarketError::InvalidUtf8)?;
 
-    let price = price_update.get_price_no_older_than(&clock, 10_u64,&get_feed_id_from_hex(feed_id_str)? )?;
+    if market.final_price.is_none() {
+        let feed_id_str = std::str::from_utf8(&market.feed_id)
+            .map_err(|_| MarketError::InvalidUtf8)?;
 
-    let bet_pool: AccountInfo = match bet.direction {
-        Direction::Higher => ctx.accounts.higher_pool.to_account_info(),
-        Direction::Lower => ctx.accounts.lower_pool.to_account_info(),
+        let feed_id = get_feed_id_from_hex(feed_id_str)
+            .map_err(|_| MarketError::InvalidFeedId)?;
+
+
+        let price =price_update.get_price_no_older_than(
+            &clock,
+            30_u64,
+            &feed_id 
+        )?;
+
+        let adjusted_price = if price.exponent < 0 {
+            (price.price as u64).checked_mul(10_u64.pow(price.exponent.abs() as u32))
+                .ok_or(MarketError::PriceAdjustmentOverflow)?
+        } else {
+            (price.price as u64).checked_div(10_u64.pow(price.exponent as u32))
+                .ok_or(MarketError::PriceAdjustmentOverflow)?
+        };
+
+        market.final_price = Some(adjusted_price);
+    }
+
+    require!(
+        market.final_price.is_some(),
+        MarketError::NoneFinalPrice
+    );
+
+    bet.is_won = match bet.direction {
+        Direction::Higher => market.final_price.unwrap() > market.target_price,
+        Direction::Lower => market.final_price.unwrap() < market.target_price,
     };
+    
+    if bet.is_won {
+        let bet_pool: AccountInfo = match bet.direction {
+            Direction::Higher => ctx.accounts.higher_pool.to_account_info(),
+            Direction::Lower => ctx.accounts.lower_pool.to_account_info(),
+        };
 
-    transfer(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: bet_pool,
-                to: ctx.accounts.user_ata.to_account_info(),
-                authority: ctx.accounts.user.to_account_info(),
-            },
-        ),
-        bet.amount,
-    )?;
+        let payout = bet.amount.checked_mul(bet.odds).unwrap() / ODDS_FIXED_POINT_MULTIPLIER;
+    
+        transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: bet_pool,
+                    to: ctx.accounts.user_ata.to_account_info(),
+                    authority: ctx.accounts.market.to_account_info(),
+                },
+            ),
+            payout,
+        )?;
+    }
+
+    
 
     //just for increased redundancy because the bet account should be closed after
     bet.amount = 0;
@@ -61,7 +100,7 @@ pub struct ClaimBet<'info> {
         bump = market.bump,
         address = bet.market, 
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
 
     #[account(
         token::mint = market.mint, 
@@ -72,7 +111,7 @@ pub struct ClaimBet<'info> {
         ],
         bump = market.higher_pool_bump,
     )]
-    pub higher_pool: Account<'info, TokenAccount>,
+    pub higher_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         token::mint = market.mint, 
@@ -83,14 +122,14 @@ pub struct ClaimBet<'info> {
         ],
         bump = market.lower_pool_bump,
     )]
-    pub lower_pool: Account<'info, TokenAccount>,
+    pub lower_pool: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         associated_token::mint = market.mint,
         associated_token::authority = user,
     )]
-    pub user_ata: Account<'info, TokenAccount>,
+    pub user_ata: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -109,7 +148,7 @@ pub struct ClaimBet<'info> {
         ], 
         bump = bet.bump,
     )]
-    pub bet: Account<'info,Bet>,
+    pub bet: Box<Account<'info,Bet>>,
 
     pub price_update: Account<'info, PriceUpdateV2>,
 

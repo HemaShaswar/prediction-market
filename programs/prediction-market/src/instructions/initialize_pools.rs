@@ -1,14 +1,46 @@
-use crate::{Market, MarketError,MarketInitialization, HIGHER_POOL_SEED, LOWER_POOL_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token,TokenAccount,Mint};
+use anchor_spl::token::*;
+
+use crate::constants::*;
+use crate::states::*;
+use crate::MarketError;
 
 pub fn _initialize_pools(
     ctx: Context<InitializePools>,
 ) -> Result<()> {
     let market = &mut ctx.accounts.market;
     require!(market.initialization == MarketInitialization::InitializedMarket,MarketError::InvalidMarketInitialization);
+    require_eq!(
+        ctx.accounts.pool_token_mint.key().to_string(),
+        USDC_MINT, //more tokens can be allowed in the future
+        MarketError::InvalidPoolMint
+    ); 
     
-    market.mint = ctx.accounts.market_mint_account.key();
+    transfer(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.user_ata.to_account_info(),
+                to: ctx.accounts.higher_pool.to_account_info(),
+                authority: ctx.accounts.market_creator.to_account_info(),
+            },
+        ),
+        INITIAL_USDC_POOL_AMOUNT,
+    )?;
+
+    transfer(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.user_ata.to_account_info(),
+                to: ctx.accounts.lower_pool.to_account_info(),
+                authority: ctx.accounts.market_creator.to_account_info(),
+            },
+        ),
+        INITIAL_USDC_POOL_AMOUNT,
+    )?;
+    
+    market.mint = ctx.accounts.pool_token_mint.key();
     
     market.lower_pool_bump = ctx.bumps.lower_pool;
     market.higher_pool_bump = ctx.bumps.higher_pool;
@@ -34,7 +66,7 @@ pub struct InitializePools<'info> {
     #[account(
         init,
         payer = market_creator,
-        token::mint = market_mint_account, 
+        token::mint = pool_token_mint, 
         token::authority = market,
         seeds = [
             HIGHER_POOL_SEED.as_bytes(),
@@ -47,7 +79,7 @@ pub struct InitializePools<'info> {
     #[account(
         init,
         payer = market_creator,
-        token::mint = market_mint_account, 
+        token::mint = pool_token_mint, 
         token::authority = market,
         seeds = [
             LOWER_POOL_SEED.as_bytes(),
@@ -57,14 +89,22 @@ pub struct InitializePools<'info> {
     )]
     pub lower_pool: Box<Account<'info, TokenAccount>>,
 
-    //token mint account that bets are gonna be made with e.g JUP
-    pub market_mint_account: Box<Account<'info,Mint>>,
+    #[account(
+        mut,
+        associated_token::mint = market.mint,
+        associated_token::authority = market_creator,
+    )]
+    pub user_ata: Box<Account<'info, TokenAccount>>,
+
+    //token mint account that bets are gonna be made with e.g USDC
+    pub pool_token_mint: Box<Account<'info,Mint>>,
 
     #[account(
         mut,
         address = market.creator,
     )]
     pub market_creator: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
 

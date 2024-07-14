@@ -1,6 +1,9 @@
-use crate::{error::MarketError, Market, MarketInitialization, HIGHER_POOL_SEED, LOWER_POOL_SEED, MARKET_LOCK_PERIOD};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{close_account, CloseAccount, Token, TokenAccount};
+
+use crate::constants::*;
+use crate::states::*;
+use crate::MarketError;
 
 pub fn _finalize_market(
     ctx: Context<FinalizeMarket>,
@@ -93,6 +96,7 @@ pub struct FinalizeMarket<'info> {
         address = market.creator,
     )]
     pub market_creator: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
 

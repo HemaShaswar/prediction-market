@@ -1,5 +1,7 @@
-use crate::{error::MarketError, Market, MarketInitialization};
 use anchor_lang::prelude::*;
+
+use crate::MarketError;
+use crate::states::{Market,MarketInitialization};
 
 pub fn _initialize_market(
     ctx: Context<InitializeMarket>,

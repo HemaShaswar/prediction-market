@@ -11,6 +11,7 @@ pub struct Market {
     pub bump: u8,
     pub mint: Pubkey,
     pub higher_pool_bump: u8,
+    pub final_price: Option<u64>,
     pub lower_pool_bump: u8,
     pub feed_id: [u8; 66], // from https://pyth.network/developers/price-feed-ids#solana-stables
     pub initialization: MarketInitialization,
@@ -41,4 +42,6 @@ pub struct Bet {
     pub claimed: bool,
     pub bump: u8,
     pub initialized: bool,
+    pub odds: u64,
+    pub is_won: bool,
 }
