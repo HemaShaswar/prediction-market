@@ -1,16 +1,18 @@
+use anchor_lang::prelude::*;
+
 pub mod constants;
 pub mod error;
 pub mod instructions;
 pub mod state;
-
-use anchor_lang::prelude::*;
+pub mod utils;
 
 pub use constants::*;
 pub use error::*;
 pub use instructions::*;
 pub use state::*;
+pub use utils::*;
 
-declare_id!("FhcPY3mVhztRu32BKnkqNTx4gAyeNK6Yy5Tixcrgz6Lm");
+declare_id!("26Ub21yKBNNrdKC9PZNPxtmjPqEd4phgveuUvesDZkqx");
 
 #[program]
 pub mod prediction_market {
@@ -19,7 +21,7 @@ pub mod prediction_market {
     pub fn initialize_market(
         ctx: Context<InitializeMarket>,
         taget_price: u64,
-        feed_id: [u8; 66], // from https://pyth.network/developers/price-feed-ids#solana-stables
+        feed_id: String, // from https://pyth.network/developers/price-feed-ids#solana-stables
         market_duration: u64,
     ) -> Result<()> {
         _initialize_market(ctx, taget_price, feed_id, market_duration)

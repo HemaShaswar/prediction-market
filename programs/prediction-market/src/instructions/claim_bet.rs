@@ -6,6 +6,8 @@ use pyth_solana_receiver_sdk::price_update::{get_feed_id_from_hex,PriceUpdateV2}
 use crate::constants::*;
 use crate::states::*;
 use crate::MarketError;
+use crate::utils::hash_to_bytes;
+
 
 pub fn _claim_bet(
     ctx: Context<ClaimBet>,
@@ -92,14 +94,14 @@ pub struct ClaimBet<'info> {
     #[account(
         seeds = [
             market.creator.key().as_ref(), 
-            &market.feed_id,
+            &hash_to_bytes(&market.feed_id),
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
         ],
         bump = market.bump,
         address = bet.market, 
     )]
-    pub market: Box<Account<'info, Market>>,
+    pub market: Account<'info, Market>,
 
     #[account(
         token::mint = market.mint, 
@@ -110,7 +112,7 @@ pub struct ClaimBet<'info> {
         ],
         bump = market.higher_pool_bump,
     )]
-    pub higher_pool: Box<Account<'info, TokenAccount>>,
+    pub higher_pool: Account<'info, TokenAccount>,
 
     #[account(
         token::mint = market.mint, 
@@ -121,14 +123,14 @@ pub struct ClaimBet<'info> {
         ],
         bump = market.lower_pool_bump,
     )]
-    pub lower_pool: Box<Account<'info, TokenAccount>>,
+    pub lower_pool: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = market.mint,
         associated_token::authority = user,
     )]
-    pub user_ata: Box<Account<'info, TokenAccount>>,
+    pub user_ata: Account<'info, TokenAccount>,
 
     #[account(
         mut,
@@ -147,7 +149,7 @@ pub struct ClaimBet<'info> {
         ], 
         bump = bet.bump,
     )]
-    pub bet: Box<Account<'info,Bet>>,
+    pub bet: Account<'info,Bet>,
 
     pub price_update: Account<'info, PriceUpdateV2>,
 

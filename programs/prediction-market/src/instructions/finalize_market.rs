@@ -4,6 +4,8 @@ use anchor_spl::token::{close_account, CloseAccount, Token, TokenAccount};
 use crate::constants::*;
 use crate::states::*;
 use crate::MarketError;
+use crate::utils::hash_to_bytes;
+
 
 pub fn _finalize_market(
     ctx: Context<FinalizeMarket>,
@@ -24,7 +26,7 @@ pub fn _finalize_market(
         }, 
         &[&[
             market.creator.key().as_ref(), 
-            &market.feed_id,
+            &hash_to_bytes(&market.feed_id),
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
             &[ctx.accounts.market.bump],
@@ -40,7 +42,7 @@ pub fn _finalize_market(
         }, 
         &[&[
             market.creator.key().as_ref(), 
-            &market.feed_id,
+            &hash_to_bytes(&market.feed_id),
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
             &[ctx.accounts.market.bump],
@@ -57,13 +59,13 @@ pub struct FinalizeMarket<'info> {
         close = market_creator,
         seeds = [
             market.creator.key().as_ref(), 
-            &market.feed_id,
+            &hash_to_bytes(&market.feed_id),
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
         ],
         bump = market.bump,
     )]
-    pub market: Box<Account<'info, Market>>,
+    pub market: Account<'info, Market>,
 
     #[account(
         mut,
@@ -76,7 +78,7 @@ pub struct FinalizeMarket<'info> {
         ],
         bump = market.higher_pool_bump,
     )]
-    pub higher_pool: Box<Account<'info, TokenAccount>>,
+    pub higher_pool: Account<'info, TokenAccount>,
 
     #[account(
         mut,
@@ -89,7 +91,7 @@ pub struct FinalizeMarket<'info> {
         ],
         bump = market.lower_pool_bump,
     )]
-    pub lower_pool: Box<Account<'info, TokenAccount>>,
+    pub lower_pool: Account<'info, TokenAccount>,
 
     #[account(
         mut,
