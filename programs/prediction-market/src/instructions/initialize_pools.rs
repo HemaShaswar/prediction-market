@@ -40,6 +40,8 @@ pub fn _initialize_pools(
         ),
         INITIAL_USDC_POOL_AMOUNT,
     )?;
+
+    //Nothing after this comments seems to run at all
     
     market.mint = ctx.accounts.pool_token_mint.key();
     
