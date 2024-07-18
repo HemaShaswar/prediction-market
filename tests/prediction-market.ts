@@ -46,9 +46,10 @@ describe("prediction_market", () => {
 
       await program.methods
         .initializeMarket(targetPrice, feedIdString, marketDuration)
-        .accounts({
+        .accountsStrict({
           market: marketAddress,
           marketCreator: marketCreator1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([marketCreator1])
         .rpc({ commitment: "confirmed" });
@@ -80,7 +81,11 @@ describe("prediction_market", () => {
 
         await program.methods
           .initializeMarket(targetPrice, feedIdString2, marketDuration)
-          .accounts({ marketCreator: marketCreator, market: marketAddress })
+          .accountsStrict({
+            marketCreator: marketCreator,
+            market: marketAddress,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
           .rpc({ commitment: "confirmed" });
 
         await checkMarket(
@@ -109,7 +114,7 @@ describe("prediction_market", () => {
         mint_authority,
         mint_authority.publicKey,
         null,
-        9
+        6
       );
 
       const user_ata = await token.getOrCreateAssociatedTokenAccount(
@@ -137,15 +142,17 @@ describe("prediction_market", () => {
       );
 
       const [higherPoolAddress, higherPoolBump] = getPoolAddress(
-        marketAddress,
         HIGHER_POOL_SEED,
+        marketAddress,
         program.programId
       );
       const [lowerPoolAddress, LowerpoolBump] = getPoolAddress(
-        marketAddress,
         LOWER_POOL_SEED,
+        marketAddress,
         program.programId
       );
+
+      console.log("mint account in initialization: ", mint.toString());
 
       await program.methods
         .initializePools()
@@ -161,27 +168,24 @@ describe("prediction_market", () => {
         })
         .signers([marketCreator1])
         .rpc({ commitment: "confirmed" });
+
+      await checkMarket(
+        program,
+        marketAddress,
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        marketBump,
+        higherPoolBump,
+        LowerpoolBump,
+        mint
+      );
     });
   });
   describe("Cancel Market", () => {
     it("Market Canceled", async () => {
       await airdrop(provider.connection, marketCreator1.publicKey);
-
-      const creator_ata = await token.getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        marketCreator1,
-        mint,
-        marketCreator1.publicKey
-      );
-
-      await token.mintTo(
-        provider.connection,
-        mint_authority,
-        mint,
-        user_ata.address,
-        mint_authority,
-        to_mint.toNumber()
-      );
 
       const [marketAddress, marketBump] = getMarketAddress(
         marketCreator1.publicKey,
@@ -191,26 +195,35 @@ describe("prediction_market", () => {
         program.programId
       );
 
+      const market = await program.account.market.fetch(marketAddress);
+
+      console.log("mint account in cancelation: ", market.mint.toString());
+      const creator_ata = await token.getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        marketCreator1,
+        market.mint,
+        marketCreator1.publicKey
+      );
+
       const [higherPoolAddress, higherPoolBump] = getPoolAddress(
-        marketAddress,
         HIGHER_POOL_SEED,
+        marketAddress,
         program.programId
       );
       const [lowerPoolAddress, LowerpoolBump] = getPoolAddress(
-        marketAddress,
         LOWER_POOL_SEED,
+        marketAddress,
         program.programId
       );
 
       await program.methods
-        .initializePools()
+        .cancelMarket()
         .accountsStrict({
           market: marketAddress,
           marketCreator: marketCreator1.publicKey,
-          poolTokenMint: mint,
           higherPool: higherPoolAddress,
           lowerPool: lowerPoolAddress,
-          userAta: user_ata.address,
+          creatorAta: creator_ata.address,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
@@ -256,8 +269,8 @@ function getMarketAddress(
 }
 
 function getPoolAddress(
-  marketAddress: PublicKey,
   poolStringSeed: string,
+  marketAddress: PublicKey,
   programId: PublicKey
 ) {
   return PublicKey.findProgramAddressSync(
@@ -273,7 +286,10 @@ async function checkMarket(
   feedId: string,
   targetPrice: anchor.BN,
   marketDuration: anchor.BN,
-  bump: number
+  bump: number,
+  higherPoolBump?: number,
+  lowerPoolBump?: number,
+  mint?: PublicKey
 ) {
   const marketData = await program.account.market.fetch(marketAddress);
 
@@ -284,6 +300,7 @@ async function checkMarket(
     marketDuration.toString()
   );
   assert.strictEqual(marketData.bump.toString(), bump.toString());
+
   assert.deepEqual(marketData.initialization, { initializedMarket: {} });
 
   const utf8ByteArray_content = stringToUtf8ByteArray(feedId);
@@ -295,6 +312,23 @@ async function checkMarket(
     marketData.feedId.toString(),
     paddedByteArray_content.toString()
   );
+
+  if (higherPoolBump) {
+    assert.strictEqual(
+      higherPoolBump.toString(),
+      marketData.higherPoolBump.toString()
+    );
+  }
+  if (lowerPoolBump) {
+    assert.strictEqual(
+      marketData.lowerPoolBump.toString(),
+      lowerPoolBump.toString()
+    );
+  }
+
+  if (mint) {
+    assert.strictEqual(marketData.mint.toString(), mint.toString());
+  }
 }
 
 function stringToUtf8ByteArray(inputString: string): Uint8Array {
