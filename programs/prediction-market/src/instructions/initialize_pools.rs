@@ -50,6 +50,11 @@ pub fn _initialize_pools(
 
     market.initialization = MarketInitialization::InitializedPools;
 
+    msg!("lower pool bump in ctx: {}",ctx.bumps.lower_pool);
+    msg!("higher pool bump in ctx: {}",ctx.bumps.higher_pool);
+    msg!("lower pool bump in market: {}",market.lower_pool_bump);
+    msg!("higher pool bump in market: {}",market.higher_pool_bump);
+
     Ok(())
 }
 

@@ -32,8 +32,6 @@ describe("prediction_market", () => {
 
   const to_mint = new anchor.BN(30000000);
 
-  let mint;
-
   describe("Market Initialization", () => {
     it("Initializes a market", async () => {
       await airdrop(provider.connection, marketCreator1.publicKey);
@@ -45,8 +43,6 @@ describe("prediction_market", () => {
         marketDuration,
         program.programId
       );
-
-      console.log("market.key(): ", marketAddress.toString());
 
       await program.methods
         .initializeMarket(targetPrice, feedIdString, marketDuration)
@@ -113,7 +109,7 @@ describe("prediction_market", () => {
       await airdrop(provider.connection, marketCreator1.publicKey);
       await airdrop(provider.connection, mint_authority.publicKey);
 
-      mint = await token.createMint(
+      const mint = await token.createMint(
         provider.connection,
         mint_authority,
         mint_authority.publicKey,
@@ -145,9 +141,6 @@ describe("prediction_market", () => {
         program.programId
       );
 
-      const market = await program.account.market.fetch(marketAddress);
-      console.log("market.key(): ", marketAddress.toString());
-      console.log("market.feedId: ", market.feedId.toString());
       const [higherPoolAddress, higherPoolBump] = getPoolAddress(
         HIGHER_POOL_SEED,
         marketAddress,
@@ -173,7 +166,7 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([marketCreator1])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ skipPreflight: true });
 
       await checkMarket(
         program,
@@ -199,18 +192,12 @@ describe("prediction_market", () => {
       );
       const market = await program.account.market.fetch(marketAddress);
 
-      console.log("market.feedId: ", market.feedId.toString());
-      console.log("market.mint: ", market.mint.toBase58().toString());
-      console.log("market.higherPoolBump: ", market.higherPoolBump.toString());
-      console.log("market.lowerPoolBump: ", market.lowerPoolBump.toString());
-      console.log("market.key(): ", marketAddress.toString());
-
       const [higherPoolAddress, higherPoolBump] = getPoolAddress(
         HIGHER_POOL_SEED,
         marketAddress,
         program.programId
       );
-      const [lowerPoolAddress, LowerpoolBump] = getPoolAddress(
+      const [lowerPoolAddress, lowerPoolBump] = getPoolAddress(
         LOWER_POOL_SEED,
         marketAddress,
         program.programId
@@ -218,7 +205,7 @@ describe("prediction_market", () => {
       const creator_ata = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
         marketCreator1,
-        mint,
+        market.mint,
         marketCreator1.publicKey
       );
 
