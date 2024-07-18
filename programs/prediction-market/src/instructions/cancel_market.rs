@@ -19,25 +19,39 @@ pub fn _cancel_market(
     require_keys_eq!(creator.key(),market.creator,MarketError::UnauthorizedUser);
 
     transfer(
-        CpiContext::new(
+        CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: higher_pool.to_account_info(),
                 to: ctx.accounts.creator_ata.to_account_info(),
                 authority: ctx.accounts.market.to_account_info(),
             },
+            &[&[
+            market.creator.key().as_ref(), 
+            &hash_to_bytes(&market.feed_id),
+            &market.target_price.to_le_bytes(), 
+            &market.market_duration.to_le_bytes(),
+            &[ctx.accounts.market.bump],
+        ]],
         ),
         INITIAL_USDC_POOL_AMOUNT,
     )?;
 
     transfer(
-        CpiContext::new(
+        CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: lower_pool.to_account_info(),
                 to: ctx.accounts.creator_ata.to_account_info(),
                 authority: ctx.accounts.market.to_account_info(),
             },
+            &[&[
+            market.creator.key().as_ref(), 
+            &hash_to_bytes(&market.feed_id),
+            &market.target_price.to_le_bytes(), 
+            &market.market_duration.to_le_bytes(),
+            &[ctx.accounts.market.bump],
+        ]],
         ),
         INITIAL_USDC_POOL_AMOUNT,
     )?;

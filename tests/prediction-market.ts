@@ -61,7 +61,8 @@ describe("prediction_market", () => {
         feedIdString,
         targetPrice,
         marketDuration,
-        marketBump
+        marketBump,
+        { initializedMarket: {} }
       );
     });
     it("Can not initialize with invalid FeedId", async () => {
@@ -95,7 +96,8 @@ describe("prediction_market", () => {
           feedIdString,
           targetPrice,
           marketDuration,
-          marketBump
+          marketBump,
+          { initializedMarket: {} }
         );
       } catch (e) {
         assert.strictEqual(e.error.errorCode.code, "IncorrectFeedIDLength");
@@ -166,7 +168,7 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([marketCreator1])
-        .rpc({ skipPreflight: true });
+        .rpc({ commitment: "confirmed" });
 
       await checkMarket(
         program,
@@ -175,7 +177,11 @@ describe("prediction_market", () => {
         feedIdString,
         targetPrice,
         marketDuration,
-        marketBump
+        marketBump,
+        { initializedPools: {} },
+        higherPoolBump,
+        lowerpoolBump,
+        mint
       );
     });
   });
@@ -221,7 +227,22 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([marketCreator1])
-        .rpc({ skipPreflight: true });
+        .rpc({ commitment: "confirmed" });
+
+      const cancelledMarket = await program.account.market.fetchNullable(
+        marketAddress
+      );
+      assert.isNull(cancelledMarket);
+
+      const higherPool = await program.account.market.fetchNullable(
+        higherPoolAddress
+      );
+      assert.isNull(higherPool);
+
+      const lowerPool = await program.account.market.fetchNullable(
+        lowerPoolAddress
+      );
+      assert.isNull(lowerPool);
     });
   });
 });
@@ -280,6 +301,7 @@ async function checkMarket(
   targetPrice: anchor.BN,
   marketDuration: anchor.BN,
   bump: number,
+  initialization: Object,
   higherPoolBump?: number,
   lowerPoolBump?: number,
   mint?: PublicKey
@@ -302,6 +324,11 @@ async function checkMarket(
   assert.strictEqual(
     marketData.feedId.toString(),
     paddedByteArray_content.toString()
+  );
+
+  assert.strictEqual(
+    Object.keys(marketData.initialization)[0],
+    Object.keys(initialization)[0]
   );
 
   if (higherPoolBump) {
