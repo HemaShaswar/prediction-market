@@ -32,6 +32,10 @@ describe("prediction_market", () => {
 
   const to_mint = new anchor.BN(30000000);
 
+  const INITIAL_USDC_AMOUNT = program.idl.constants.find(
+    (el) => el.name == "initialUsdcPoolAmount"
+  ).value;
+
   describe("Market Initialization", () => {
     it("Initializes a market", async () => {
       await airdrop(provider.connection, marketCreator1.publicKey);
@@ -149,7 +153,7 @@ describe("prediction_market", () => {
         program.programId
       );
 
-      const [lowerPoolAddress, lowerpoolBump] = getPoolAddress(
+      const [lowerPoolAddress, lowerPoolBump] = getPoolAddress(
         LOWER_POOL_SEED,
         marketAddress,
         program.programId
@@ -180,7 +184,7 @@ describe("prediction_market", () => {
         marketBump,
         { initializedPools: {} },
         higherPoolBump,
-        lowerpoolBump,
+        lowerPoolBump,
         mint
       );
     });
@@ -208,7 +212,7 @@ describe("prediction_market", () => {
         marketAddress,
         program.programId
       );
-      const creator_ata = await token.getOrCreateAssociatedTokenAccount(
+      const creatorAta = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
         marketCreator1,
         market.mint,
@@ -222,7 +226,7 @@ describe("prediction_market", () => {
           marketCreator: marketCreator1.publicKey,
           higherPool: higherPoolAddress,
           lowerPool: lowerPoolAddress,
-          creatorAta: creator_ata.address,
+          creatorAta: creatorAta.address,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
@@ -245,12 +249,213 @@ describe("prediction_market", () => {
       assert.isNull(lowerPool);
     });
   });
+  describe("Finalize Market", () => {
+    it("Initializes market again", async () => {
+      await airdrop(provider.connection, marketCreator1.publicKey);
+
+      const [marketAddress, marketBump] = getMarketAddress(
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        program.programId
+      );
+
+      await program.methods
+        .initializeMarket(targetPrice, feedIdString, marketDuration)
+        .accountsStrict({
+          market: marketAddress,
+          marketCreator: marketCreator1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([marketCreator1])
+        .rpc({ commitment: "confirmed" });
+
+      await checkMarket(
+        program,
+        marketAddress,
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        marketBump,
+        { initializedMarket: {} }
+      );
+    });
+
+    it("Initialize pool again", async () => {
+      await airdrop(provider.connection, marketCreator1.publicKey);
+      await airdrop(provider.connection, mint_authority.publicKey);
+
+      const mint = await token.createMint(
+        provider.connection,
+        mint_authority,
+        mint_authority.publicKey,
+        null,
+        9
+      );
+
+      const user_ata = await token.getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        marketCreator1,
+        mint,
+        marketCreator1.publicKey
+      );
+
+      await token.mintTo(
+        provider.connection,
+        mint_authority,
+        mint,
+        user_ata.address,
+        mint_authority,
+        to_mint.toNumber()
+      );
+
+      const [marketAddress, marketBump] = getMarketAddress(
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        program.programId
+      );
+
+      const [higherPoolAddress, higherPoolBump] = getPoolAddress(
+        HIGHER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+
+      const [lowerPoolAddress, lowerPoolBump] = getPoolAddress(
+        LOWER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+
+      await program.methods
+        .initializePools()
+        .accountsStrict({
+          market: marketAddress,
+          marketCreator: marketCreator1.publicKey,
+          poolTokenMint: mint,
+          higherPool: higherPoolAddress,
+          lowerPool: lowerPoolAddress,
+          userAta: user_ata.address,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: token.TOKEN_PROGRAM_ID,
+        })
+        .signers([marketCreator1])
+        .rpc({ commitment: "confirmed" });
+
+      await checkMarket(
+        program,
+        marketAddress,
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        marketBump,
+        { initializedPools: {} },
+        higherPoolBump,
+        lowerPoolBump,
+        mint
+      );
+    }).retries(2);
+
+    it("Market Finalized", async () => {
+      console.log(
+        "You can comment out the line in finalize_market.rs where it checks for MarketLockDurationNotOver"
+      );
+      await airdrop(provider.connection, marketCreator1.publicKey);
+
+      const [marketAddress, marketBump] = getMarketAddress(
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        program.programId
+      );
+      const market = await program.account.market.fetch(marketAddress);
+
+      const [higherPoolAddress, higherPoolBump] = getPoolAddress(
+        HIGHER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+      const [lowerPoolAddress, lowerPoolBump] = getPoolAddress(
+        LOWER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+      const creatorAta = await token.getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        marketCreator1,
+        market.mint,
+        marketCreator1.publicKey
+      );
+
+      await checkMarket(
+        program,
+        marketAddress,
+        marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        marketBump,
+        { initializedPools: {} },
+        higherPoolBump,
+        lowerPoolBump,
+        market.mint
+      );
+
+      const creatorBalanceBefore = Number(creatorAta.amount);
+
+      await program.methods
+        .finalizeMarket()
+        .accountsStrict({
+          market: marketAddress,
+          marketCreator: marketCreator1.publicKey,
+          higherPool: higherPoolAddress,
+          lowerPool: lowerPoolAddress,
+          creatorAta: creatorAta.address,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: token.TOKEN_PROGRAM_ID,
+        })
+        .signers([marketCreator1])
+        .rpc({ commitment: "confirmed" });
+
+      const creatorAtaAfter = await token.getAccount(
+        provider.connection,
+        creatorAta.address,
+        "confirmed"
+      );
+
+      assert.strictEqual(
+        Number(creatorAtaAfter.amount),
+        creatorBalanceBefore + Number(INITIAL_USDC_AMOUNT) * 2
+      );
+
+      const cancelledMarket = await program.account.market.fetchNullable(
+        marketAddress
+      );
+      assert.isNull(cancelledMarket);
+
+      const higherPool = await program.account.market.fetchNullable(
+        higherPoolAddress
+      );
+      assert.isNull(higherPool);
+
+      const lowerPool = await program.account.market.fetchNullable(
+        lowerPoolAddress
+      );
+      assert.isNull(lowerPool);
+    });
+  });
 });
 
 async function airdrop(
   connection: anchor.web3.Connection,
   address: PublicKey,
-  amount = 3 * LAMPORTS_PER_SOL
+  amount = 10 * LAMPORTS_PER_SOL
 ) {
   await connection.confirmTransaction(
     await connection.requestAirdrop(address, amount),
