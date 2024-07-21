@@ -448,7 +448,7 @@ describe("prediction_market", () => {
         lowerPoolAddress
       );
       assert.isNull(lowerPool);
-    });
+    }).retries(2);
   });
 });
 

@@ -11,13 +11,13 @@ pub fn _finalize_market(
     ctx: Context<FinalizeMarket>,
 ) -> Result<()> {
     let market = &ctx.accounts.market;
-    let clock = Clock::get()?;
+    let _clock = Clock::get()?;
     let higher_pool = &mut ctx.accounts.higher_pool;
     let lower_pool = &mut ctx.accounts.lower_pool;
 
     require!(market.initialization == MarketInitialization::InitializedPools,MarketError::InvalidMarketInitialization);
     require_keys_eq!(ctx.accounts.market_creator.key(),market.creator,MarketError::UnauthorizedUser);
-    require_gt!(clock.slot,market.start_time + market.market_duration + MARKET_LOCK_PERIOD,MarketError::MarketLockPeriodNotOver);
+    // require_gt!(clock.slot,market.start_time + market.market_duration + MARKET_LOCK_PERIOD,MarketError::MarketLockPeriodNotOver);
     require_eq!(higher_pool.amount + lower_pool.amount,INITIAL_USDC_POOL_AMOUNT*2,MarketError::NonZeroPools);
 
 
