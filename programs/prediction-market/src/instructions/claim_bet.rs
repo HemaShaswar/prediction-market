@@ -92,6 +92,7 @@ pub fn _claim_bet(
 #[derive(Accounts)]
 pub struct ClaimBet<'info> {
     #[account(
+        mut,
         seeds = [
             market.creator.key().as_ref(), 
             &hash_to_bytes(&market.feed_id),

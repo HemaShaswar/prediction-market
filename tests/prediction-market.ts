@@ -70,14 +70,12 @@ describe("prediction_market", () => {
       );
     });
     it("Can not initialize with invalid FeedId", async () => {
-      const marketCreator = provider.wallet.publicKey;
-
-      await airdrop(provider.connection, marketCreator);
+      await airdrop(provider.connection, marketCreator1.publicKey);
 
       let should_fail = "This Should Fail";
       try {
         const [marketAddress, marketBump] = getMarketAddress(
-          marketCreator,
+          marketCreator1.publicKey,
           feedIdString2,
           targetPrice,
           marketDuration,
@@ -87,24 +85,19 @@ describe("prediction_market", () => {
         await program.methods
           .initializeMarket(targetPrice, feedIdString2, marketDuration)
           .accountsStrict({
-            marketCreator: marketCreator,
+            marketCreator: marketCreator1.publicKey,
             market: marketAddress,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
+          .signers([marketCreator1])
           .rpc({ commitment: "confirmed" });
-
-        await checkMarket(
-          program,
-          marketAddress,
-          marketCreator,
-          feedIdString,
-          targetPrice,
-          marketDuration,
-          marketBump,
-          { initializedMarket: {} }
-        );
       } catch (e) {
-        assert.strictEqual(e.error.errorCode.code, "IncorrectFeedIDLength");
+        const anchorErr = anchor.AnchorError.parse(e.logs);
+        assert.strictEqual(
+          anchorErr.error.errorCode.code,
+          "IncorrectFeedIDLength",
+          "Unexpected Error Code"
+        );
         should_fail = "Failed";
       }
       assert.strictEqual(should_fail, "Failed");
@@ -123,7 +116,7 @@ describe("prediction_market", () => {
         6
       );
 
-      const user_ata = await token.getOrCreateAssociatedTokenAccount(
+      const userAta = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
         marketCreator1,
         mint,
@@ -134,7 +127,7 @@ describe("prediction_market", () => {
         provider.connection,
         mint_authority,
         mint,
-        user_ata.address,
+        userAta.address,
         mint_authority,
         to_mint.toNumber()
       );
@@ -167,7 +160,7 @@ describe("prediction_market", () => {
           poolTokenMint: mint,
           higherPool: higherPoolAddress,
           lowerPool: lowerPoolAddress,
-          userAta: user_ata.address,
+          userAta: userAta.address,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
@@ -189,12 +182,193 @@ describe("prediction_market", () => {
       );
     });
   });
-  describe("Cancel Market", () => {
-    it("Market Canceled", async () => {
+
+  describe("Place Bet", () => {
+    const betAmount = new anchor.BN(10000);
+    const betDirection = { higher: {} };
+    it("Placed Bet", async () => {
+      await airdrop(provider.connection, hema.publicKey);
       await airdrop(provider.connection, marketCreator1.publicKey);
 
       const [marketAddress, marketBump] = getMarketAddress(
         marketCreator1.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        program.programId
+      );
+
+      const [higherPoolAddress, higherPoolBump] = getPoolAddress(
+        HIGHER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+
+      const [lowerPoolAddress, lowerPoolBump] = getPoolAddress(
+        LOWER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+
+      const market = await program.account.market.fetch(marketAddress);
+
+      const userAta = await token.getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        hema,
+        market.mint,
+        hema.publicKey
+      );
+
+      await token.mintTo(
+        provider.connection,
+        mint_authority,
+        market.mint,
+        userAta.address,
+        mint_authority,
+        to_mint.toNumber()
+      );
+
+      const [betAddress, betBump] = getBetAddress(
+        marketAddress,
+        hema.publicKey,
+        betAmount,
+        betDirection,
+        program.programId
+      );
+
+      await program.methods
+        .placeBet(betAmount, betDirection)
+        .accountsStrict({
+          bet: betAddress,
+          market: marketAddress,
+          user: hema.publicKey,
+          higherPool: higherPoolAddress,
+          lowerPool: lowerPoolAddress,
+          userAta: userAta.address,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: token.TOKEN_PROGRAM_ID,
+        })
+        .signers([hema])
+        .rpc({ commitment: "confirmed" });
+    });
+  }).timeout(1000);
+
+  describe("Cancel Market", () => {
+    it("Initializes market again", async () => {
+      await airdrop(provider.connection, hema.publicKey);
+
+      const [marketAddress, marketBump] = getMarketAddress(
+        hema.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        program.programId
+      );
+
+      await program.methods
+        .initializeMarket(targetPrice, feedIdString, marketDuration)
+        .accountsStrict({
+          market: marketAddress,
+          marketCreator: hema.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([hema])
+        .rpc({ commitment: "confirmed" });
+
+      await checkMarket(
+        program,
+        marketAddress,
+        hema.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        marketBump,
+        { initializedMarket: {} }
+      );
+    });
+
+    it("Initialize pool again", async () => {
+      await airdrop(provider.connection, hema.publicKey);
+      await airdrop(provider.connection, mint_authority.publicKey);
+
+      const mint = await token.createMint(
+        provider.connection,
+        mint_authority,
+        mint_authority.publicKey,
+        null,
+        9
+      );
+
+      const userAta = await token.getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        hema,
+        mint,
+        hema.publicKey
+      );
+
+      await token.mintTo(
+        provider.connection,
+        mint_authority,
+        mint,
+        userAta.address,
+        mint_authority,
+        to_mint.toNumber()
+      );
+
+      const [marketAddress, marketBump] = getMarketAddress(
+        hema.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        program.programId
+      );
+
+      const [higherPoolAddress, higherPoolBump] = getPoolAddress(
+        HIGHER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+
+      const [lowerPoolAddress, lowerPoolBump] = getPoolAddress(
+        LOWER_POOL_SEED,
+        marketAddress,
+        program.programId
+      );
+
+      await program.methods
+        .initializePools()
+        .accountsStrict({
+          market: marketAddress,
+          marketCreator: hema.publicKey,
+          poolTokenMint: mint,
+          higherPool: higherPoolAddress,
+          lowerPool: lowerPoolAddress,
+          userAta: userAta.address,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: token.TOKEN_PROGRAM_ID,
+        })
+        .signers([hema])
+        .rpc({ commitment: "confirmed" });
+
+      await checkMarket(
+        program,
+        marketAddress,
+        hema.publicKey,
+        feedIdString,
+        targetPrice,
+        marketDuration,
+        marketBump,
+        { initializedPools: {} },
+        higherPoolBump,
+        lowerPoolBump,
+        mint
+      );
+    });
+    it("Market Canceled", async () => {
+      await airdrop(provider.connection, hema.publicKey);
+
+      const [marketAddress, marketBump] = getMarketAddress(
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -214,23 +388,23 @@ describe("prediction_market", () => {
       );
       const creatorAta = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
-        marketCreator1,
+        hema,
         market.mint,
-        marketCreator1.publicKey
+        hema.publicKey
       );
 
       await program.methods
         .cancelMarket()
         .accountsStrict({
           market: marketAddress,
-          marketCreator: marketCreator1.publicKey,
+          marketCreator: hema.publicKey,
           higherPool: higherPoolAddress,
           lowerPool: lowerPoolAddress,
           creatorAta: creatorAta.address,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
-        .signers([marketCreator1])
+        .signers([hema])
         .rpc({ commitment: "confirmed" });
 
       const cancelledMarket = await program.account.market.fetchNullable(
@@ -251,10 +425,10 @@ describe("prediction_market", () => {
   });
   describe("Finalize Market", () => {
     it("Initializes market again", async () => {
-      await airdrop(provider.connection, marketCreator1.publicKey);
+      await airdrop(provider.connection, hema.publicKey);
 
       const [marketAddress, marketBump] = getMarketAddress(
-        marketCreator1.publicKey,
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -265,16 +439,16 @@ describe("prediction_market", () => {
         .initializeMarket(targetPrice, feedIdString, marketDuration)
         .accountsStrict({
           market: marketAddress,
-          marketCreator: marketCreator1.publicKey,
+          marketCreator: hema.publicKey,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
-        .signers([marketCreator1])
+        .signers([hema])
         .rpc({ commitment: "confirmed" });
 
       await checkMarket(
         program,
         marketAddress,
-        marketCreator1.publicKey,
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -284,7 +458,7 @@ describe("prediction_market", () => {
     });
 
     it("Initialize pool again", async () => {
-      await airdrop(provider.connection, marketCreator1.publicKey);
+      await airdrop(provider.connection, hema.publicKey);
       await airdrop(provider.connection, mint_authority.publicKey);
 
       const mint = await token.createMint(
@@ -295,24 +469,24 @@ describe("prediction_market", () => {
         9
       );
 
-      const user_ata = await token.getOrCreateAssociatedTokenAccount(
+      const userAta = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
-        marketCreator1,
+        hema,
         mint,
-        marketCreator1.publicKey
+        hema.publicKey
       );
 
       await token.mintTo(
         provider.connection,
         mint_authority,
         mint,
-        user_ata.address,
+        userAta.address,
         mint_authority,
         to_mint.toNumber()
       );
 
       const [marketAddress, marketBump] = getMarketAddress(
-        marketCreator1.publicKey,
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -335,21 +509,21 @@ describe("prediction_market", () => {
         .initializePools()
         .accountsStrict({
           market: marketAddress,
-          marketCreator: marketCreator1.publicKey,
+          marketCreator: hema.publicKey,
           poolTokenMint: mint,
           higherPool: higherPoolAddress,
           lowerPool: lowerPoolAddress,
-          userAta: user_ata.address,
+          userAta: userAta.address,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
-        .signers([marketCreator1])
+        .signers([hema])
         .rpc({ commitment: "confirmed" });
 
       await checkMarket(
         program,
         marketAddress,
-        marketCreator1.publicKey,
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -359,16 +533,13 @@ describe("prediction_market", () => {
         lowerPoolBump,
         mint
       );
-    }).retries(2);
+    });
 
     it("Market Finalized", async () => {
-      console.log(
-        "You can comment out the line in finalize_market.rs where it checks for MarketLockDurationNotOver"
-      );
-      await airdrop(provider.connection, marketCreator1.publicKey);
+      await airdrop(provider.connection, hema.publicKey);
 
       const [marketAddress, marketBump] = getMarketAddress(
-        marketCreator1.publicKey,
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -388,15 +559,15 @@ describe("prediction_market", () => {
       );
       const creatorAta = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
-        marketCreator1,
+        hema,
         market.mint,
-        marketCreator1.publicKey
+        hema.publicKey
       );
 
       await checkMarket(
         program,
         marketAddress,
-        marketCreator1.publicKey,
+        hema.publicKey,
         feedIdString,
         targetPrice,
         marketDuration,
@@ -413,14 +584,14 @@ describe("prediction_market", () => {
         .finalizeMarket()
         .accountsStrict({
           market: marketAddress,
-          marketCreator: marketCreator1.publicKey,
+          marketCreator: hema.publicKey,
           higherPool: higherPoolAddress,
           lowerPool: lowerPoolAddress,
           creatorAta: creatorAta.address,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
-        .signers([marketCreator1])
+        .signers([hema])
         .rpc({ commitment: "confirmed" });
 
       const creatorAtaAfter = await token.getAccount(
@@ -448,7 +619,7 @@ describe("prediction_market", () => {
         lowerPoolAddress
       );
       assert.isNull(lowerPool);
-    }).retries(2);
+    });
   });
 });
 
@@ -458,8 +629,7 @@ async function airdrop(
   amount = 10 * LAMPORTS_PER_SOL
 ) {
   await connection.confirmTransaction(
-    await connection.requestAirdrop(address, amount),
-    "confirmed"
+    await connection.requestAirdrop(address, amount)
   );
 }
 
@@ -494,6 +664,30 @@ function getPoolAddress(
 ) {
   return PublicKey.findProgramAddressSync(
     [anchor.utils.bytes.utf8.encode(poolStringSeed), marketAddress.toBuffer()],
+    programId
+  );
+}
+
+function getBetAddress(
+  marketAddress: PublicKey,
+  userAddress: PublicKey,
+  betAmount: anchor.BN,
+  betDirection: Object,
+  programId: PublicKey,
+  betStringSeed = "prediction_bet"
+) {
+  const directionString = Object.keys(betDirection)[0];
+  const directionNum = directionString == "higher" ? 0 : 1;
+  const directionBN = new anchor.BN(directionNum);
+
+  return PublicKey.findProgramAddressSync(
+    [
+      anchor.utils.bytes.utf8.encode(betStringSeed),
+      userAddress.toBuffer(),
+      marketAddress.toBuffer(),
+      betAmount.toArrayLike(Buffer, "le", 8),
+      Buffer.from(new Uint8Array([directionNum])),
+    ],
     programId
   );
 }
