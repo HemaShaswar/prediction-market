@@ -56,7 +56,8 @@ describe("prediction_market", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([marketCreator1])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       await checkMarket(
         program,
@@ -90,7 +91,8 @@ describe("prediction_market", () => {
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .signers([marketCreator1])
-          .rpc({ commitment: "confirmed" });
+          .rpc()
+          .then(confirmTx);
       } catch (e) {
         const anchorErr = anchor.AnchorError.parse(e.logs);
         assert.strictEqual(
@@ -165,7 +167,8 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([marketCreator1])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       await checkMarket(
         program,
@@ -249,7 +252,8 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
     });
   });
 
@@ -273,7 +277,8 @@ describe("prediction_market", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       await checkMarket(
         program,
@@ -348,7 +353,8 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       await checkMarket(
         program,
@@ -405,7 +411,8 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       const cancelledMarket = await program.account.market.fetchNullable(
         marketAddress
@@ -443,7 +450,8 @@ describe("prediction_market", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       await checkMarket(
         program,
@@ -518,7 +526,8 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       await checkMarket(
         program,
@@ -592,7 +601,8 @@ describe("prediction_market", () => {
           tokenProgram: token.TOKEN_PROGRAM_ID,
         })
         .signers([hema])
-        .rpc({ commitment: "confirmed" });
+        .rpc()
+        .then(confirmTx);
 
       const creatorAtaAfter = await token.getAccount(
         provider.connection,
@@ -628,9 +638,7 @@ async function airdrop(
   address: PublicKey,
   amount = 10 * LAMPORTS_PER_SOL
 ) {
-  await connection.confirmTransaction(
-    await connection.requestAirdrop(address, amount)
-  );
+  await connection.requestAirdrop(address, amount).then(confirmTx);
 }
 
 function getMarketAddress(
@@ -765,3 +773,16 @@ function padByteArrayWithZeroes(
   paddedArray.set(byteArray, 0);
   return paddedArray;
 }
+
+const confirmTx = async (signature: string) => {
+  const latestBlockhash = await anchor
+    .getProvider()
+    .connection.getLatestBlockhash();
+  await anchor.getProvider().connection.confirmTransaction(
+    {
+      signature,
+      ...latestBlockhash,
+    },
+    "confirmed"
+  );
+};
