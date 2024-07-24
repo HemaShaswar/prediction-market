@@ -251,7 +251,7 @@ describe("prediction_market", () => {
         .signers([hema])
         .rpc({ commitment: "confirmed" });
     });
-  }).timeout(1000);
+  });
 
   describe("Cancel Market", () => {
     it("Initializes market again", async () => {
