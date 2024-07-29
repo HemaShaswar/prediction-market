@@ -4,17 +4,18 @@ use anchor_spl::token::*;
 use crate::constants::*;
 use crate::states::*;
 use crate::MarketError;
+use crate::utils::hash_to_bytes;
 
 pub fn _initialize_pools(
     ctx: Context<InitializePools>,
 ) -> Result<()> {
     let market = &mut ctx.accounts.market;
     require!(market.initialization == MarketInitialization::InitializedMarket,MarketError::InvalidMarketInitialization);
-    require_eq!(
-        ctx.accounts.pool_token_mint.key().to_string(),
-        USDC_MINT, //more tokens can be allowed in the future
-        MarketError::InvalidPoolMint
-    ); 
+    // require_eq!(
+    //     ctx.accounts.pool_token_mint.key().to_string(),
+    //     USDC_MINT, //more tokens can be allowed in the future
+    //     MarketError::InvalidPoolMint
+    // ); 
     
     transfer(
         CpiContext::new(
@@ -39,6 +40,8 @@ pub fn _initialize_pools(
         ),
         INITIAL_USDC_POOL_AMOUNT,
     )?;
+
+    //Nothing after this comments seems to run at all
     
     market.mint = ctx.accounts.pool_token_mint.key();
     
@@ -53,9 +56,10 @@ pub fn _initialize_pools(
 #[derive(Accounts)]
 pub struct InitializePools<'info> {
     #[account(
+        mut,
         seeds = [
             market.creator.key().as_ref(), 
-            &market.feed_id,
+            &hash_to_bytes(&market.feed_id),
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
         ],
@@ -91,13 +95,13 @@ pub struct InitializePools<'info> {
 
     #[account(
         mut,
-        associated_token::mint = market.mint,
-        associated_token::authority = market_creator,
+        associated_token::mint = pool_token_mint,
+        associated_token::authority = market.creator,
     )]
     pub user_ata: Box<Account<'info, TokenAccount>>,
 
     //token mint account that bets are gonna be made with e.g USDC
-    pub pool_token_mint: Box<Account<'info,Mint>>,
+    pub pool_token_mint: Account<'info,Mint>,
 
     #[account(
         mut,

@@ -5,6 +5,7 @@ use num_traits::*;
 use crate::constants::*;
 use crate::states::*;
 use crate::MarketError;
+use crate::utils::hash_to_bytes;
 
 pub fn _place_bet(
     ctx: Context<PlaceBet>,
@@ -21,13 +22,20 @@ pub fn _place_bet(
     };
 
     transfer(
-        CpiContext::new(
+        CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             Transfer {
                 from: ctx.accounts.user_ata.to_account_info(),
                 to: bet_pool,
                 authority: ctx.accounts.user.to_account_info(),
             },
+            &[&[
+            market.creator.key().as_ref(), 
+            &hash_to_bytes(&market.feed_id),
+            &market.target_price.to_le_bytes(), 
+            &market.market_duration.to_le_bytes(),
+            &[ctx.accounts.market.bump],
+        ]],
         ),
         bet_amount,
     )?;
@@ -68,18 +76,19 @@ pub fn _place_bet(
 #[instruction(bet_amount:u64,bet_direction:Direction)]
 pub struct PlaceBet<'info> {
     #[account(
+        mut,
         seeds = [
             market.creator.key().as_ref(), 
-            &market.feed_id,
+            &hash_to_bytes(&market.feed_id),
             &market.target_price.to_le_bytes(), 
             &market.market_duration.to_le_bytes(),
         ],
         bump = market.bump,
-        address = bet.market,
     )]
-    pub market: Box<Account<'info, Market>>,
+    pub market: Account<'info, Market>,
 
     #[account(
+        mut,
         token::mint = market.mint, 
         token::authority = market,
         seeds = [
@@ -88,9 +97,10 @@ pub struct PlaceBet<'info> {
         ],
         bump = market.higher_pool_bump,
     )]
-    pub higher_pool: Box<Account<'info, TokenAccount>>,
+    pub higher_pool: Account<'info, TokenAccount>,
 
     #[account(
+        mut,
         token::mint = market.mint, 
         token::authority = market,
         seeds = [
@@ -99,14 +109,14 @@ pub struct PlaceBet<'info> {
         ],
         bump = market.lower_pool_bump,
     )]
-    pub lower_pool: Box<Account<'info, TokenAccount>>,
+    pub lower_pool: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = market.mint,
         associated_token::authority = user,
     )]
-    pub user_ata: Box<Account<'info, TokenAccount>>,
+    pub user_ata: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>,
@@ -124,7 +134,7 @@ pub struct PlaceBet<'info> {
         ], // I realize that a users may need to place the same exact bet multiple using a Bet Id might solve that
         bump
     )]
-    pub bet: Box<Account<'info,Bet>>,
+    pub bet: Account<'info,Bet>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
